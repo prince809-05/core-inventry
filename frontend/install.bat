@@ -1,0 +1,2 @@
+npm install react-router-dom axios zustand sonner lucide-react class-variance-authority clsx tailwind-merge @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-select @radix-ui/react-label @radix-ui/react-separator @radix-ui/react-slot @radix-ui/react-toast @radix-ui/react-avatar @radix-ui/react-progress @radix-ui/react-tabs @radix-ui/react-popover @radix-ui/react-scroll-area date-fns
+npm install -D tailwindcss @tailwindcss/vite autoprefixer
