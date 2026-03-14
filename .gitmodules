@@ -1,0 +1,3 @@
+[submodule "core-inventry"]
+	path = core-inventry
+	url = https://github.com/dhruvil8507/core-inventry.git
