@@ -1,0 +1,86 @@
+CoreInventory: In-Depth Technical Architecture & Project Explanation
+CoreInventory is a state-of-the-art, full-stack enterprise web application engineered specifically for advanced warehouse inventory management. This document provides an exhaustive, granular breakdown of the architectural decisions, database modeling, business logic, and user interface engineering that constitute the system.
+
+Whether you are a developer examining the codebase, a product manager reviewing the feature set, or a student utilizing this as a case study, this document covers the system from the metal up to the pixel.
+
+1. High-Level System Architecture
+CoreInventory employs a strictly decoupled Client-Server architecture. This modern approach separates the presentation payload (what the user sees) from the mathematical and data logic (what the server processes).
+
+The Decoupled Paradigm
+By cleanly separating the React frontend from the Node.js backend, we achieve:
+
+Independent Scaling: If the database queries become a bottleneck, the backend server hardware can be upgraded independently of the static frontend hosting.
+Platform Agnosticism: Because the backend strictly serves raw JSON data via REST APIs, we can easily build a mobile app (iOS/Android) in the future without rewriting a single line of backend business logic.
+Security Isolation: The database credentials, encryption salts, and SMTP passwords remain locked securely behind the backend environment variables, never exposed to user browsers.
+2. Infrastructure & Tech Stack Deep Dive
+A. Frontend Interface (The Client)
+Vite Base Engine: We bypassed traditional Create-React-App in favor of Vite. Vite utilizes native ES modules, rendering local development server startup nearly instantaneous and utilizing Rollup for highly optimized, minified production builds.
+React 18: The core library, utilizing functional components and hooks (useState, useEffect, useCallback) to manage complex, interactive UI states (like opening modals or fetching live data tables).
+Tailwind CSS (Utility-First Styling): Instead of managing bloated 
+.css
+ or .scss files, we use Tailwind. This guarantees consistent design tokens (padding, colors, margins) and resulted in a highly semantic, class-based HTML structure.
+Native Theming Protocol: A major UI feature is the seamless toggle between a crisp Light Mode (slate-50 backgrounds, dark slate text) and a deep Dark Mode (slate-900 backgrounds). Tailwind's dark: modifier class reads the application state instantly, recoloring the entire DOM without a page reload.
+Lucide React Icons: A lightweight, customizable SVG icon library to enhance visual hierarchy across the dashboard and sidebars.
+React Router DOM: Enables Single Page Application (SPA) navigation. When a user navigates from "Products" to "Deliveries", only the central container re-renders, while the Sidebar and Header remain static, resulting in native-app speeds.
+B. Backend API (The Server)
+Node.js Runtime & Express.js Framework: Express handles the HTTP routing. We created modular route files (/api/products, /api/auth, /api/moves) to keep the codebase maintainable.
+Cors Middleware: Configured strictly to allow requests only from the specified frontend origin, preventing cross-site request forgery attacks from malicious websites.
+Bcrypt & JSON Web Tokens (JWT): The absolute core of our security. We don't use dated session cookies; instead, we issue cryptographically signed JWTs that the frontend attaches to the Authorization header of every sensitive API request.
+Nodemailer & SMTP: For password resets, we integrated directly with authentic Google SMTP servers using an App-Specific Password to guarantee secure, instantaneous email delivery for One-Time Passwords (OTPs).
+C. Database (The Persistence Layer)
+PostgreSQL: Inventory is fundamentally relational. A "Receipt" only exists if it relies on a specific "Product", which belongs to a specific "Category", stored in a specific "Warehouse". A NoSQL database (like MongoDB) would risk data desynchronization here. PostgreSQL ensures strict referential integrity (using Foreign Keys), meaning we can never accidentally delete a product if it still has active stock ledger history attached to it.
+3. The Core Business Logic: Lifecycle of Inventory
+The fundamental problem CoreInventory solves is the mathematical tracking of physical goods over time. We solve this using a specific workflow structure.
+
+Phase 1: Master Data Management (Products & Warehouses)
+Before any stock moves, the 'scaffolding' must be built.
+
+Warehouses: Users define physical infrastructure (e.g., "Main Warehouse", "Zone B", "Rack 12").
+Products Catalog: Users define the items themselves. A product entry includes its string Name, unique string SKU, its 
+Category
+, the Unit of measurement (e.g., 'pcs', 'bottles', 'kg'), and its Reorder Quantity.
+Low Stock Trigger Logic: The backend runs a mathematical comparison. If the total calculated stock falls below the Reorder Quantity, it automatically flags the frontend to render a yellow "Low Stock" badge next to the item.
+Phase 2: Inbound Operations (Receipts)
+How does inventory enter the system?
+
+A user opens the Receipts component and clicks "New Receipt".
+They select the Product and enter a positive integer (e.g., 50 boxes).
+The critical logic: The receipt starts in a "Draft" status. At this point, the physical stock number is not changed. Only when the warehouse manager physically verifies the boxes and clicks "Validate" does the backend controller execute the math: Previous Stock (0) + Receipt Quantity (50) = New Stock (50).
+Phase 3: Outbound Operations (Deliveries)
+How does inventory leave the system?
+
+A user logs a Delivery to fulfill an order.
+The protection logic: When the delivery is validated, the backend verifies if there is sufficient stock. If a user tries to deliver 60 items when only 50 exist, the backend aborts the transaction to prevent mathematically impossible negative inventory. If sufficient, the backend executes: Current Stock (50) - Delivery Quantity (10) = New Stock (40).
+Phase 4: Internal Logistics (Transfers & Adjustments)
+Transfers: These do mathematically nothing to the total stock quantity in the company. Instead, they shift numbers between location IDs (e.g., subtracting 10 from 'Receiving Dock' and adding 10 to 'Aisle 4').
+Adjustments: Crucial for physical audits. If the computer says we have 40 keyboards, but a physical count reveals 38 (due to theft or breakage), an 'Adjustment' order is created. The user specifies the reason ("Damaged stock"). The system force-updates the total to 38, ensuring reality matches the database.
+Phase 5: The Immutable Audit Trail (Stock Ledger)
+Every single time Phase 2, 3, or 4 executes successfully, an absolute record is written to the 
+Moves
+ ledger table. It logs the Date, the Type of move, the User who executed it, the Old Quantity, the Change (+/-), and the New Quantity. This provides an undisputed historical timeline for auditors.
+
+4. Advanced System Features
+The Authentication & OTP Architecture
+Standard apps just use email links for passwords. We built a robust OTP system.
+
+The user requests a reset.
+The Node server randomly generates a 6-digit number constraint and caches it in memory (or a database table) linked to that email, stamped with a 10-minute expiration.
+Nodemailer connects to Google SMTP and physically emails the user.
+The user types the code into the React UI.
+The API receives the code, cross-references it with the database timestamp, and only if mathematically correct and unexpired, unlocks the password overwrite patch.
+Dynamic Real-Time Dashboard
+The /dashboard React page does not perform heavy math in the browser. Instead, it hits a dedicated /api/dashboard backend endpoint. The PostgreSQL database runs optimized COUNT() and SUM() aggregation queries to instantly calculate Total Products, Pending Deliveries, and Out of Stock alerts. The backend returns a lightweight JSON object containing these 6 numbers, which the frontend visually maps into customized 
+KPICard
+ components.
+
+Secure File Structures & Environment Variables
+The application strictly enforces security through separation. The 
+.env
+ files hold the DNA of the application—the Database connection strings, the JWT encryption secret, the server Port numbers, and the SMTP App Passwords. Because these 
+.env
+ files are added to 
+.gitignore
+, they are never uploaded to GitHub or exposed publicly.
+
+Conclusion
+CoreInventory is an incredibly robust, architecturally sound application. It seamlessly blends highly optimized interactive React interfaces tailored for human use with a strict, mathematically rigid PostgreSQL backend designed to guard data integrity at all costs. It serves as a textbook example of modern enterprise web development.
